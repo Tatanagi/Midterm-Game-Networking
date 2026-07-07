@@ -10,6 +10,7 @@ TagManager:
   - TimerText
   - OwnerUI
   - ClientUI
+  - Bullet
   layers:
   - Default
   - TransparentFX
