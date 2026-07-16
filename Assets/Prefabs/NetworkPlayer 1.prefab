@@ -289,6 +289,37 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &4202091662805158469
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5572798861693842597}
+  m_Layer: 0
+  m_Name: Health
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5572798861693842597
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202091662805158469}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.626, y: 1.952, z: 0.522}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8601425139260543585}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4330799347026044333
 GameObject:
   m_ObjectHideFlags: 0
@@ -372,6 +403,8 @@ GameObject:
   - component: {fileID: 8258269588407098306}
   - component: {fileID: 474911559729038961}
   - component: {fileID: 8772606867344771318}
+  - component: {fileID: 8199138069642688147}
+  - component: {fileID: 2185756423318379769}
   m_Layer: 6
   m_Name: NetworkPlayer 1
   m_TagString: Player
@@ -395,6 +428,7 @@ Transform:
   - {fileID: 6485484444705376831}
   - {fileID: 8044690620716349990}
   - {fileID: 7987258525279045691}
+  - {fileID: 5572798861693842597}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &6448099307928751834
@@ -514,7 +548,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 211149082
+  GlobalObjectIdHash: 1260403922
   InScenePlacedSourceGlobalObjectIdHash: 1860827142
   DeferredDespawnTick: 0
   Ownership: 1
@@ -668,7 +702,40 @@ MonoBehaviour:
   gunPivot: {fileID: 8044690620716349990}
   firePoint: {fileID: 1928151702176535958}
   bulletPrefab: {fileID: 528474628956806858, guid: 607dd5c0c4f4ca4468356c61446f53e4, type: 3}
-  bulletSpeed: 35
+  bulletSpeed: 5
   fireRate: 0.2
   aimSmoothSpeed: 25
   shootKey: 323
+--- !u!114 &8199138069642688147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8040791923385812113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d682a53a74aa9142b9d420583918fcb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  ShowTopMostFoldoutHeaderGroup: 1
+  maxHealth: 100
+  currentHealth: 100
+  respawnDelay: 2
+--- !u!114 &2185756423318379769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8040791923385812113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2143bd1c0edb4ca488ea7164f4e1eca4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealthBarUI
+  ShowTopMostFoldoutHeaderGroup: 1
+  healthBarPrefab: {fileID: 4282781775284445925, guid: e99867cfa5eccae498b4612c8668d3ba, type: 3}
+  healthBarAnchor: {fileID: 5572798861693842597}
+  offset: {x: 0, y: -0.4, z: 1.03}
+  canvasScale: 0.015

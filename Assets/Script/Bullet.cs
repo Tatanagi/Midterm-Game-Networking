@@ -7,14 +7,20 @@ using UnityEngine;
 [RequireComponent(typeof(NetworkTransform))]
 public class Bullet : NetworkBehaviour
 {
-    private Rigidbody rb;
-    private NetworkTransform netTransform;
-    private ulong ownerId;
-    private bool canCollide = false;
+    [Header("Bullet Settings")]
+    [SerializeField] private float damage = 25f;
+    [SerializeField] private float lifetime = 5f;
 
     [Header("Collision Settings")]
-    [SerializeField] private float collisionRadius = 0.4f;
+    [SerializeField] private float collisionRadius = 0.45f;
     [SerializeField] private LayerMask playerLayer = ~0;
+
+    private Rigidbody rb;
+    private NetworkTransform netTransform;
+
+    private ulong shooterClientId;
+    private bool canCollide = false;
+    private bool hasHit = false;          // ← NEW: Prevent multiple damage applications
 
     private void Awake()
     {
@@ -25,12 +31,9 @@ public class Bullet : NetworkBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-        // NetworkTransform settings for smooth projectiles
         if (netTransform != null)
         {
             netTransform.Interpolate = true;
-            // Slerp removed - it doesn't exist on NetworkTransform
-            // Rotation interpolation is handled automatically when Interpolate = true
             netTransform.InLocalSpace = false;
         }
     }
@@ -38,10 +41,17 @@ public class Bullet : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        ownerId = OwnerClientId;
+        Invoke(nameof(EnableCollisions), 0.1f);   // Slightly faster enable
 
-        // Small delay to prevent self-hit
-        Invoke(nameof(EnableCollisions), 0.15f);
+        if (IsServer)
+        {
+            Invoke(nameof(DespawnBullet), lifetime);
+        }
+    }
+
+    public void SetShooter(ulong shooterId)
+    {
+        shooterClientId = shooterId;
     }
 
     private void EnableCollisions()
@@ -51,10 +61,14 @@ public class Bullet : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsServer || !canCollide) return;
+        if (!IsServer || !canCollide || hasHit) return;
 
-        if (Physics.SphereCast(transform.position, collisionRadius, rb.linearVelocity.normalized,
-            out RaycastHit hit, rb.linearVelocity.magnitude * Time.deltaTime + 0.6f, playerLayer))
+        Vector3 velocity = rb.linearVelocity;
+        if (velocity.sqrMagnitude < 0.1f) return;
+
+        if (Physics.SphereCast(transform.position, collisionRadius,
+                velocity.normalized, out RaycastHit hit,
+                velocity.magnitude * Time.deltaTime + 0.7f, playerLayer))
         {
             if (hit.collider.CompareTag("Player"))
             {
@@ -65,7 +79,7 @@ public class Bullet : NetworkBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (!IsServer || !canCollide) return;
+        if (!IsServer || !canCollide || hasHit) return;
 
         if (collision.gameObject.CompareTag("Player"))
         {
@@ -73,28 +87,30 @@ public class Bullet : NetworkBehaviour
         }
     }
 
-    private void HandlePlayerHit(GameObject player)
+    private void HandlePlayerHit(GameObject playerObj)
     {
-        if (player.TryGetComponent<NetworkObject>(out var netObj) && netObj.OwnerClientId == ownerId)
-            return;
+        if (hasHit) return;
+        hasHit = true;                    // ← Prevent double damage
 
-        Debug.Log($"💥 Bullet from {ownerId} hit Player {netObj?.OwnerClientId ?? 999}");
-        // TODO: Apply damage here
-    }
+        if (!playerObj.TryGetComponent<NetworkObject>(out var netObj)) return;
+        if (netObj.OwnerClientId == shooterClientId) return; // self-hit protection
 
-    private void Start()
-    {
-        if (IsServer)
+        if (playerObj.TryGetComponent<PlayerHealth>(out var health))
         {
-            Invoke(nameof(DespawnBullet), 5f);
+            health.TakeDamage(damage, shooterClientId);
         }
+
+        Debug.Log($"💥 Bullet from {shooterClientId} hit player {netObj.OwnerClientId}");
+
+        // Destroy bullet immediately after hit on server
+        DespawnBullet();
     }
 
     private void DespawnBullet()
     {
         if (IsServer && NetworkObject != null && NetworkObject.IsSpawned)
         {
-            NetworkObject.Despawn();
+            NetworkObject.Despawn(true);
         }
     }
 }

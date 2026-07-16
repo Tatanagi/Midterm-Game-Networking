@@ -227,6 +227,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Bullet
   ShowTopMostFoldoutHeaderGroup: 1
+  damage: 10
+  lifetime: 5
   collisionRadius: 0.3
   playerLayer:
     serializedVersion: 2

@@ -50,12 +50,11 @@ public class NetworkGun : NetworkBehaviour
             if (gunPivot != null)
             {
                 netGunRotation.Value = gunPivot.rotation;
-                targetRemoteRotation = gunPivot.rotation; // Not really used by owner
+                targetRemoteRotation = gunPivot.rotation;
             }
         }
         else
         {
-            // Remote players start with current network value
             if (gunPivot != null)
             {
                 gunPivot.rotation = netGunRotation.Value;
@@ -81,7 +80,7 @@ public class NetworkGun : NetworkBehaviour
         }
         else
         {
-            // Smooth remote interpolation every frame
+            // Smooth remote interpolation
             if (gunPivot != null)
             {
                 gunPivot.rotation = Quaternion.Slerp(
@@ -106,14 +105,12 @@ public class NetworkGun : NetworkBehaviour
             {
                 Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
 
-                // Smooth local aiming
                 gunPivot.rotation = Quaternion.Slerp(
                     gunPivot.rotation,
                     targetRotation,
                     aimSmoothSpeed * Time.deltaTime
                 );
 
-                // Sync to network
                 netGunRotation.Value = gunPivot.rotation;
             }
         }
@@ -129,14 +126,15 @@ public class NetworkGun : NetworkBehaviour
 
     private void HandleShooting()
     {
-        if (Input.GetKey(shootKey) && Time.time >= nextFireTime)
+        // CHANGED: Use GetKeyDown instead of GetKey → exactly 1 bullet per click
+        if (Input.GetKeyDown(shootKey) && Time.time >= nextFireTime)
         {
             nextFireTime = Time.time + fireRate;
 
             if (firePoint != null && bulletPrefab != null)
             {
                 SpawnLocalPredictedBullet();
-                ShootServerRpc(firePoint.position, firePoint.forward);
+                ShootServerRpc(firePoint.position, firePoint.forward, OwnerClientId);
             }
         }
     }
@@ -148,19 +146,24 @@ public class NetworkGun : NetworkBehaviour
         {
             rb.linearVelocity = firePoint.forward * bulletSpeed;
         }
-        Destroy(localBullet, 0.3f);
+        Destroy(localBullet, 0.3f); // Short lifetime for prediction ghost
     }
 
     [Rpc(SendTo.Server)]
-    private void ShootServerRpc(Vector3 spawnPos, Vector3 direction, RpcParams rpcParams = default)
+    private void ShootServerRpc(Vector3 spawnPos, Vector3 direction, ulong shooterClientId, RpcParams rpcParams = default)
     {
         if (bulletPrefab == null) return;
 
         GameObject bulletObj = Instantiate(bulletPrefab, spawnPos, Quaternion.LookRotation(direction));
 
+        if (bulletObj.TryGetComponent<Bullet>(out var bullet))
+        {
+            bullet.SetShooter(shooterClientId);
+        }
+
         if (bulletObj.TryGetComponent<NetworkObject>(out var netObj))
         {
-            netObj.SpawnWithOwnership(rpcParams.Receive.SenderClientId);
+            netObj.Spawn();
         }
 
         if (bulletObj.TryGetComponent<Rigidbody>(out var rb))

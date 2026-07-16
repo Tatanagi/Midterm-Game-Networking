@@ -236,7 +236,7 @@ GameObject:
   - component: {fileID: 22143219}
   - component: {fileID: 22143218}
   m_Layer: 7
-  m_Name: Plane
+  m_Name: Level
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3528,7 +3528,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CountdownTimer
   ShowTopMostFoldoutHeaderGroup: 1
-  startTime: 180
+  startTime: 5
   timerText: {fileID: 943663576}
   finalScoreUI: {fileID: 393528347}
   scoresText: {fileID: 1787767732}
