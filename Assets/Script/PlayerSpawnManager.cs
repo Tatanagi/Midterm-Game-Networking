@@ -1,4 +1,5 @@
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
 public class PlayerSpawnManager : NetworkBehaviour
@@ -7,43 +8,11 @@ public class PlayerSpawnManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        if (!IsServer)
-            return;
-
-        GameObject[] spawnPointObjects = GameObject.FindGameObjectsWithTag("SpawnPoint");
-
-        if (spawnPointObjects.Length == 0)
+        base.OnNetworkSpawn();
+        if (IsServer)
         {
-            Debug.LogError("❌ No SpawnPoint tagged objects found in the scene! Please add at least one object with the 'SpawnPoint' tag.");
-            return;
+            RespawnPlayer();
         }
-
-        // Safety check for index
-        if (nextSpawnIndex >= spawnPointObjects.Length)
-        {
-            nextSpawnIndex = 0;
-        }
-
-        Transform selectedSpawnPoint = spawnPointObjects[nextSpawnIndex].transform;
-
-        CharacterController characterController = GetComponent<CharacterController>();
-
-        if (characterController != null)
-        {
-            characterController.enabled = false;
-        }
-
-        transform.position = selectedSpawnPoint.position;
-        transform.rotation = selectedSpawnPoint.rotation;
-
-        if (characterController != null)
-        {
-            characterController.enabled = true;
-        }
-
-        nextSpawnIndex++;
-
-        Debug.Log($"✅ Player spawned at SpawnPoint index {nextSpawnIndex - 1}");
     }
 
     public void RespawnPlayer()
@@ -51,10 +20,9 @@ public class PlayerSpawnManager : NetworkBehaviour
         if (!IsServer) return;
 
         GameObject[] spawnPoints = GameObject.FindGameObjectsWithTag("SpawnPoint");
-
         if (spawnPoints.Length == 0)
         {
-            Debug.LogError("❌ No SpawnPoint tagged objects found for respawn!");
+            Debug.LogError("❌ No SpawnPoint tagged objects found!");
             return;
         }
 
@@ -62,13 +30,44 @@ public class PlayerSpawnManager : NetworkBehaviour
         Transform spawnPoint = spawnPoints[index].transform;
 
         CharacterController cc = GetComponent<CharacterController>();
-        if (cc != null) cc.enabled = false;
+        bool ccWasEnabled = cc != null && cc.enabled;
+        if (ccWasEnabled) cc.enabled = false;
 
-        transform.position = spawnPoint.position;
-        transform.rotation = spawnPoint.rotation;
+        // Force teleport using temporary Server Authority
+        NetworkTransform netTransform = GetComponent<NetworkTransform>();
 
-        if (cc != null) cc.enabled = true;
+        if (netTransform != null)
+        {
+            // Store original authority
+            var originalAuthority = netTransform.AuthorityMode;
 
-        nextSpawnIndex++;
+            // Temporarily switch to Server Authority to force position
+            netTransform.AuthorityMode = NetworkTransform.AuthorityModes.Server;
+
+            // Force the position + rotation
+            netTransform.SetState(spawnPoint.position, spawnPoint.rotation, Vector3.one, false);
+
+            // Switch back to Owner Authority after a short delay
+            StartCoroutine(ResetToOwnerAuthority(netTransform, originalAuthority));
+        }
+        else
+        {
+            transform.SetPositionAndRotation(spawnPoint.position, spawnPoint.rotation);
+        }
+
+        if (ccWasEnabled) cc.enabled = true;
+
+        nextSpawnIndex = (nextSpawnIndex + 1) % spawnPoints.Length;
+
+        Debug.Log($"✅ Player {OwnerClientId} respawned at SpawnPoint {index}");
+    }
+
+    private System.Collections.IEnumerator ResetToOwnerAuthority(NetworkTransform netTransform, NetworkTransform.AuthorityModes originalMode)
+    {
+        yield return new WaitForSeconds(0.15f); // Give time for position to settle
+        if (netTransform != null)
+        {
+            netTransform.AuthorityMode = originalMode;
+        }
     }
 }

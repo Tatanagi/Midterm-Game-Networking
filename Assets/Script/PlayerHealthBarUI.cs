@@ -107,4 +107,22 @@ public class PlayerHealthBarUI : NetworkBehaviour
         }
         base.OnNetworkDespawn();
     }
+
+
+    // Add this method so clients can react when health resets
+    private void OnEnable()
+    {
+        if (playerHealth != null)
+        {
+            playerHealth.OnHealthChanged += HandleHealthReset;
+        }
+    }
+
+    private void HandleHealthReset(float oldValue, float newValue)
+    {
+        if (oldValue <= 0f && newValue > 0f)
+        {
+            RespawnHealthBar();
+        }
+    }
 }
