@@ -3674,7 +3674,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CountdownTimer
   ShowTopMostFoldoutHeaderGroup: 1
-  startTime: 5
+  startTime: 20
   timerText: {fileID: 943663576}
   finalScoreUI: {fileID: 393528347}
   scoresText: {fileID: 1787767732}

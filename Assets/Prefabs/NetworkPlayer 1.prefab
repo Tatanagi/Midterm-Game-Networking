@@ -177,6 +177,37 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &2185129324380844775
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2881489077812015841}
+  m_Layer: 0
+  m_Name: Display Debuf Timer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2881489077812015841
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2185129324380844775}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.83, y: 1.8, z: 1.56}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8601425139260543585}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2298882867434121220
 GameObject:
   m_ObjectHideFlags: 0
@@ -405,6 +436,7 @@ GameObject:
   - component: {fileID: 8772606867344771318}
   - component: {fileID: 8199138069642688147}
   - component: {fileID: 2185756423318379769}
+  - component: {fileID: 6740207642688777737}
   m_Layer: 6
   m_Name: NetworkPlayer 1
   m_TagString: Player
@@ -429,6 +461,7 @@ Transform:
   - {fileID: 8044690620716349990}
   - {fileID: 7987258525279045691}
   - {fileID: 5572798861693842597}
+  - {fileID: 2881489077812015841}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &6448099307928751834
@@ -548,7 +581,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 211149082
+  GlobalObjectIdHash: 1260403922
   InScenePlacedSourceGlobalObjectIdHash: 1860827142
   DeferredDespawnTick: 0
   Ownership: 1
@@ -741,3 +774,20 @@ MonoBehaviour:
   healthBarAnchor: {fileID: 5572798861693842597}
   offset: {x: 0, y: -0.4, z: 1.03}
   canvasScale: 0.015
+--- !u!114 &6740207642688777737
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8040791923385812113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 294778088877d7b47ad646c031500725, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DebuffTimerUI
+  ShowTopMostFoldoutHeaderGroup: 1
+  debuffCanvasPrefab: {fileID: 5015363622040534524, guid: 5e23c76b9463a1e4a96664c14d0c74fc, type: 3}
+  offset: {x: 0, y: 2.2, z: 0}
+  timerFontSize: 1
+  timerColor: {r: 0, g: 0, b: 0, a: 1}

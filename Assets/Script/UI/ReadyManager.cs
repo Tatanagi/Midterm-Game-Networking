@@ -182,7 +182,6 @@ public class ReadyManager : NetworkBehaviour
         }
 
         int totalPlayers = NetworkManager.Singleton.ConnectedClientsList.Count;
-
         bool allReady = readyCount.Value >= totalPlayers && totalPlayers > 0;
 
         if (!allReady)
@@ -198,31 +197,32 @@ public class ReadyManager : NetworkBehaviour
         foreach (Coin coin in existingCoins)
         {
             if (coin.TryGetComponent(out NetworkObject netObj))
-            {
                 netObj.Despawn();
-            }
         }
 
         // 2. Spawn New Coins
         CoinSpawner coinSpawner = FindFirstObjectByType<CoinSpawner>();
         if (coinSpawner != null)
-        {
             coinSpawner.SpawnInitialCoins();
-        }
-        else
-        {
-            Debug.LogWarning("[ReadyManager] CoinSpawner not found in scene!");
-        }
 
-        // 3. Respawn Players + Reset Coins
+        // 3. Respawn Players + Reset Health & Debuffs
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
             if (client.PlayerObject == null) continue;
 
+            // Reset Health + Remove Slow Debuff
+            PlayerHealth playerHealth = client.PlayerObject.GetComponent<PlayerHealth>();
+            if (playerHealth != null)
+            {
+                playerHealth.ResetHealthAndDebuffs();
+            }
+
+            // Respawn Position
             PlayerSpawnManager spawnManager = client.PlayerObject.GetComponent<PlayerSpawnManager>();
             if (spawnManager != null)
                 spawnManager.RespawnPlayer();
 
+            // Reset Coins
             PlayerCoinManager coinManager = client.PlayerObject.GetComponent<PlayerCoinManager>();
             if (coinManager != null)
                 coinManager.ResetCoins();
@@ -232,12 +232,11 @@ public class ReadyManager : NetworkBehaviour
         CountdownTimer timer = FindFirstObjectByType<CountdownTimer>();
         if (timer != null)
         {
-            Debug.Log("⏱ Starting Countdown Timer");
             timer.ResetTimer();
             timer.StartTimer();
         }
 
-        // 5. Hide Role UIs on ALL clients
+        // 5. Hide Role UIs
         HideRoleUIsClientRpc();
 
         // 6. Hide Ready UI
