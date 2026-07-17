@@ -719,9 +719,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   ShowTopMostFoldoutHeaderGroup: 1
-  maxHealth: 100
-  currentHealth: 100
+  maxHealth: 3
+  currentHealth: 3
   respawnDelay: 1
+  hitEffectDuration: 5
+  slowMultiplier: 0.5
 --- !u!114 &2185756423318379769
 MonoBehaviour:
   m_ObjectHideFlags: 0

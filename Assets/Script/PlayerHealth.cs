@@ -1,6 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 
+[RequireComponent(typeof(PlayerHealthBarUI))]
 public class PlayerHealth : NetworkBehaviour
 {
     [Header("Health Settings")]
@@ -10,6 +11,10 @@ public class PlayerHealth : NetworkBehaviour
     [Header("Death Settings")]
     [SerializeField] private float respawnDelay = 2f;
 
+    [Header("Hit Effect Settings")]
+    [SerializeField] private float hitEffectDuration = 5f;
+    [SerializeField] private float slowMultiplier = 0.5f; // 50% speed when slowed
+
     // Synced Health (Server Authoritative)
     private readonly NetworkVariable<float> netHealth = new NetworkVariable<float>(
         100f,
@@ -17,11 +22,27 @@ public class PlayerHealth : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
+    // Hit Effect Network Variables
+    private readonly NetworkVariable<bool> netIsInvincible = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private readonly NetworkVariable<float> netSpeedMultiplier = new NetworkVariable<float>(
+        1f,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
     private PlayerSpawnManager spawnManager;
     private NetworkObject netObject;
+    private NetworkPlayerController playerController;
+    private PlayerHealthBarUI healthBarUI;
 
     public float MaxHealth => maxHealth;
     public float CurrentHealth => netHealth.Value;
+    public bool IsInvincible => netIsInvincible.Value;
 
     public event System.Action<float, float> OnHealthChanged; // old, new
 
@@ -29,6 +50,8 @@ public class PlayerHealth : NetworkBehaviour
     {
         netObject = GetComponent<NetworkObject>();
         spawnManager = GetComponent<PlayerSpawnManager>();
+        playerController = GetComponent<NetworkPlayerController>();
+        healthBarUI = GetComponent<PlayerHealthBarUI>();
     }
 
     public override void OnNetworkSpawn()
@@ -36,11 +59,14 @@ public class PlayerHealth : NetworkBehaviour
         base.OnNetworkSpawn();
 
         netHealth.OnValueChanged += OnNetHealthChanged;
+        netIsInvincible.OnValueChanged += OnInvincibleChanged;
+        netSpeedMultiplier.OnValueChanged += OnSpeedMultiplierChanged;
 
         if (IsServer)
         {
             netHealth.Value = maxHealth;
             currentHealth = maxHealth;
+            netSpeedMultiplier.Value = 1f;
         }
 
         // Initial UI/feedback update
@@ -50,6 +76,8 @@ public class PlayerHealth : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         netHealth.OnValueChanged -= OnNetHealthChanged;
+        netIsInvincible.OnValueChanged -= OnInvincibleChanged;
+        netSpeedMultiplier.OnValueChanged -= OnSpeedMultiplierChanged;
         base.OnNetworkDespawn();
     }
 
@@ -64,17 +92,64 @@ public class PlayerHealth : NetworkBehaviour
         }
     }
 
+    private void OnInvincibleChanged(bool oldValue, bool newValue)
+    {
+        Debug.Log($"Player {OwnerClientId} Invincible: {newValue}");
+        // You can trigger VFX here (e.g., shield effect)
+    }
+
+    private void OnSpeedMultiplierChanged(float oldValue, float newValue)
+    {
+        if (playerController != null)
+        {
+            playerController.SetSpeedMultiplier(newValue);
+        }
+    }
+
     /// <summary>
     /// Call this on the SERVER only
     /// </summary>
     public void TakeDamage(float damage, ulong attackerClientId = 0)
     {
         if (!IsServer) return;
+        if (netIsInvincible.Value)
+        {
+            Debug.Log($"[PlayerHealth] Player {OwnerClientId} is invincible - damage ignored");
+            return;
+        }
 
         float newHealth = Mathf.Max(0f, netHealth.Value - damage);
         netHealth.Value = newHealth;
 
         Debug.Log($"[PlayerHealth] Player {OwnerClientId} took {damage} damage from {attackerClientId}. Health: {newHealth}/{maxHealth}");
+
+        // Apply hit effect (invincibility + slow)
+        if (newHealth > 0f) // Don't apply effect if dead
+        {
+            ApplyHitEffect();
+        }
+    }
+
+    private void ApplyHitEffect()
+    {
+        if (!IsServer) return;
+
+        netIsInvincible.Value = true;
+        netSpeedMultiplier.Value = slowMultiplier;
+
+        // Auto-remove effect after duration
+        CancelInvoke(nameof(ClearHitEffect)); // prevent duplicate timers
+        Invoke(nameof(ClearHitEffect), hitEffectDuration);
+    }
+
+    private void ClearHitEffect()
+    {
+        if (!IsServer) return;
+
+        netIsInvincible.Value = false;
+        netSpeedMultiplier.Value = 1f;
+
+        Debug.Log($"[PlayerHealth] Player {OwnerClientId} hit effect ended");
     }
 
     private void Die()
@@ -82,8 +157,8 @@ public class PlayerHealth : NetworkBehaviour
         Debug.Log($"💀 Player {OwnerClientId} died!");
 
         // Optional: Disable movement / shooting while dead
-        if (TryGetComponent<NetworkPlayerController>(out var controller))
-            controller.enabled = false;
+        if (playerController != null)
+            playerController.enabled = false;
 
         if (TryGetComponent<NetworkGun>(out var gun))
             gun.enabled = false;
@@ -101,21 +176,25 @@ public class PlayerHealth : NetworkBehaviour
 
     private void Respawn()
     {
-        // Local, per-instance state — must run on every machine, not just the server,
-        // or non-host clients stay permanently disabled after their first death.
-        if (TryGetComponent<NetworkPlayerController>(out var controller))
-            controller.enabled = true;
+        // Re-enable components
+        if (playerController != null)
+        {
+            playerController.enabled = true;
+            playerController.ResetMovement(); // Reset slow effect
+        }
 
         if (TryGetComponent<NetworkGun>(out var gun))
             gun.enabled = true;
 
-        if (TryGetComponent<PlayerHealthBarUI>(out var healthBarUI))
+        if (healthBarUI != null)
             healthBarUI.RespawnHealthBar();
 
         // Everything below is server-authoritative.
         if (!IsServer) return;
 
         netHealth.Value = maxHealth;
+        netIsInvincible.Value = false;
+        netSpeedMultiplier.Value = 1f;
 
         if (spawnManager != null)
             spawnManager.RespawnPlayer();

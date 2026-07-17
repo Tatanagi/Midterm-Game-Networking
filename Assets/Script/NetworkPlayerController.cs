@@ -30,6 +30,9 @@ public class NetworkPlayerController : NetworkBehaviour
     private float sessionDistance = 0f;
     private bool wasMovingLastFrame = false;
 
+    // Hit Effect (Slow)
+    private float speedMultiplier = 1f;
+
     private void Awake()
     {
         characterController = GetComponent<CharacterController>();
@@ -49,12 +52,12 @@ public class NetworkPlayerController : NetworkBehaviour
             netJumpHeight.Value = defaultJumpHeight;
         }
 
-        // Fix for NetworkTransform conflict (prevents client slowdown)
+        // Fix for NetworkTransform conflict
         if (TryGetComponent<NetworkTransform>(out var networkTransform))
         {
             if (IsServer)
             {
-                networkTransform.Interpolate = false; // Server doesn't need interpolation
+                networkTransform.Interpolate = false;
             }
         }
 
@@ -95,28 +98,25 @@ public class NetworkPlayerController : NetworkBehaviour
 
     private void MovePlayer(Vector2 input, bool jump)
     {
-        // Always use synced NetworkVariable values
-        float moveSpeed = netMoveSpeed.Value;
-        float gravity = netGravity.Value;
-        float groundedGravity = netGroundedGravity.Value;
-        float jumpHeight = netJumpHeight.Value;
+        // Apply current speed multiplier (from hit slow effect)
+        float moveSpeed = netMoveSpeed.Value * speedMultiplier;
 
         // Gravity & Jump Logic
         if (characterController.isGrounded)
         {
             if (verticalVelocity < 0f)
             {
-                verticalVelocity = groundedGravity;
+                verticalVelocity = defaultGroundedGravity; // Use default or netGroundedGravity.Value
             }
 
             if (jump)
             {
-                verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                verticalVelocity = Mathf.Sqrt(defaultJumpHeight * -2f * defaultGravity);
             }
         }
         else
         {
-            verticalVelocity += gravity * Time.deltaTime;
+            verticalVelocity += defaultGravity * Time.deltaTime;
         }
 
         // Horizontal Movement
@@ -140,9 +140,9 @@ public class NetworkPlayerController : NetworkBehaviour
                 Debug.Log($"[{gameObject.name}] STARTED MOVING | Speed: {netMoveSpeed.Value:F2} | IsServer: {IsServer}");
             }
 
-            if (Time.frameCount % 30 == 0) // Log every ~0.5 seconds
+            if (Time.frameCount % 30 == 0)
             {
-                Debug.Log($"[{gameObject.name}] MOVING | Speed: {netMoveSpeed.Value:F2} | " +
+                Debug.Log($"[{gameObject.name}] MOVING | Speed: {netMoveSpeed.Value:F2 * speedMultiplier:F2} | " +
                           $"Vel: {characterController.velocity.magnitude:F2} | Dist: {sessionDistance:F2}m");
             }
         }
@@ -169,5 +169,31 @@ public class NetworkPlayerController : NetworkBehaviour
         netGravity.Value = defaultGravity;
         netGroundedGravity.Value = defaultGroundedGravity;
         netJumpHeight.Value = defaultJumpHeight;
+    }
+
+    // ====================== HIT EFFECT ======================
+    /// <summary>
+    /// Called by PlayerHealth when hit effect is applied
+    /// </summary>
+    public void SetSpeedMultiplier(float multiplier)
+    {
+        speedMultiplier = Mathf.Max(0.1f, multiplier);
+
+        if (IsServer)
+        {
+            Debug.Log($"[{gameObject.name}] Speed multiplier set to {speedMultiplier:F2}");
+        }
+    }
+
+    /// <summary>
+    /// Reset movement speed to normal (useful on respawn)
+    /// </summary>
+    public void ResetMovement()
+    {
+        speedMultiplier = 1f;
+        if (IsServer)
+        {
+            Debug.Log($"[{gameObject.name}] Movement reset to normal");
+        }
     }
 }

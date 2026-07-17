@@ -90,19 +90,17 @@ public class Bullet : NetworkBehaviour
     private void HandlePlayerHit(GameObject playerObj)
     {
         if (hasHit) return;
-        hasHit = true;                    // ← Prevent double damage
+        hasHit = true;
 
         if (!playerObj.TryGetComponent<NetworkObject>(out var netObj)) return;
-        if (netObj.OwnerClientId == shooterClientId) return; // self-hit protection
+        if (netObj.OwnerClientId == shooterClientId) return;
 
         if (playerObj.TryGetComponent<PlayerHealth>(out var health))
         {
-            health.TakeDamage(damage, shooterClientId);
+            health.TakeDamage(damage, shooterClientId); // ← Now triggers invincibility + slow
         }
 
         Debug.Log($"💥 Bullet from {shooterClientId} hit player {netObj.OwnerClientId}");
-
-        // Destroy bullet immediately after hit on server
         DespawnBullet();
     }
 
