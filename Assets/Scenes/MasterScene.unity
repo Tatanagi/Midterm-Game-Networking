@@ -4805,11 +4805,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CoinSpawner
   ShowTopMostFoldoutHeaderGroup: 1
   coinPrefab: {fileID: 6137451282493175024, guid: 2e3e5ecf3437fe74390df2f24eb37e65, type: 3}
-  coinsToSpawn: 1
+  targetCoinCount: 1
   spawnHeight: 1
-  resetInterval: 10
   spawnPoints:
   - {fileID: 1125848296}
+  - {fileID: 1799911929}
+  - {fileID: 1385836027}
   spawnAreaCenter: {x: 0, y: 0, z: 0}
   spawnAreaSize: {x: 40, y: 1, z: 40}
 --- !u!4 &1677622996

@@ -206,7 +206,13 @@ public class ReadyManager : NetworkBehaviour
         // 2. Spawn New Coins
         CoinSpawner coinSpawner = FindFirstObjectByType<CoinSpawner>();
         if (coinSpawner != null)
-            coinSpawner.SpawnCoins();
+        {
+            coinSpawner.SpawnInitialCoins();
+        }
+        else
+        {
+            Debug.LogWarning("[ReadyManager] CoinSpawner not found in scene!");
+        }
 
         // 3. Respawn Players + Reset Coins
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
