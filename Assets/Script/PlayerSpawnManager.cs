@@ -1,5 +1,4 @@
 using Unity.Netcode;
-using Unity.Netcode.Components;
 using UnityEngine;
 
 public class PlayerSpawnManager : NetworkBehaviour
@@ -8,66 +7,48 @@ public class PlayerSpawnManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        base.OnNetworkSpawn();
-        if (IsServer)
-        {
-            RespawnPlayer();
-        }
+        if (!IsServer) return;
+        TeleportToNextSpawnPoint();
     }
 
     public void RespawnPlayer()
     {
         if (!IsServer) return;
+        TeleportToNextSpawnPoint();
+    }
 
-        GameObject[] spawnPoints = GameObject.FindGameObjectsWithTag("SpawnPoint");
-        if (spawnPoints.Length == 0)
+    private void TeleportToNextSpawnPoint()
+    {
+        GameObject[] spawnPointObjects = GameObject.FindGameObjectsWithTag("SpawnPoint");
+
+        if (spawnPointObjects.Length == 0)
         {
-            Debug.LogError("❌ No SpawnPoint tagged objects found!");
+            Debug.LogError("❌ No SpawnPoint tagged objects found in the scene!");
             return;
         }
 
-        int index = nextSpawnIndex % spawnPoints.Length;
-        Transform spawnPoint = spawnPoints[index].transform;
+        if (nextSpawnIndex >= spawnPointObjects.Length)
+            nextSpawnIndex = 0;
 
-        CharacterController cc = GetComponent<CharacterController>();
-        bool ccWasEnabled = cc != null && cc.enabled;
-        if (ccWasEnabled) cc.enabled = false;
+        Transform selected = spawnPointObjects[nextSpawnIndex].transform;
+        int usedIndex = nextSpawnIndex;
+        nextSpawnIndex++;
 
-        // Force teleport using temporary Server Authority
-        NetworkTransform netTransform = GetComponent<NetworkTransform>();
+        // Owner-authoritative NetworkTransform: the move MUST come from the owner.
+        TeleportOwnerRpc(selected.position, selected.rotation);
 
-        if (netTransform != null)
-        {
-            // Store original authority
-            var originalAuthority = netTransform.AuthorityMode;
-
-            // Temporarily switch to Server Authority to force position
-            netTransform.AuthorityMode = NetworkTransform.AuthorityModes.Server;
-
-            // Force the position + rotation
-            netTransform.SetState(spawnPoint.position, spawnPoint.rotation, Vector3.one, false);
-
-            // Switch back to Owner Authority after a short delay
-            StartCoroutine(ResetToOwnerAuthority(netTransform, originalAuthority));
-        }
-        else
-        {
-            transform.SetPositionAndRotation(spawnPoint.position, spawnPoint.rotation);
-        }
-
-        if (ccWasEnabled) cc.enabled = true;
-
-        nextSpawnIndex = (nextSpawnIndex + 1) % spawnPoints.Length;
-
-        Debug.Log($"✅ Player {OwnerClientId} respawned at SpawnPoint {index}");
+        Debug.Log($"✅ Player spawn requested at SpawnPoint index {usedIndex}");
     }
 
-    private System.Collections.IEnumerator ResetToOwnerAuthority(NetworkTransform netTransform, NetworkTransform.AuthorityModes originalMode)
+    [Rpc(SendTo.Owner)]
+    private void TeleportOwnerRpc(Vector3 position, Quaternion rotation)
     {
-        yield return new WaitForSeconds(0.15f); // Give time for position to settle
-        if (netTransform != null)
-        {
-            netTransform.AuthorityMode = originalMode;
-        }
+        CharacterController cc = GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+
+        transform.position = position;
+        transform.rotation = rotation;
+
+        if (cc != null) cc.enabled = true;
     }
 }

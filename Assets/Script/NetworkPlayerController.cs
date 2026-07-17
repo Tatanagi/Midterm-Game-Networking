@@ -1,7 +1,7 @@
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
 public class NetworkPlayerController : NetworkBehaviour
 {
     [Header("Movement Settings")]
@@ -16,17 +16,18 @@ public class NetworkPlayerController : NetworkBehaviour
     [Header("Debug")]
     [SerializeField] private bool enableMovementDebug = true;
 
-    // Network Variables (Server Authoritative stats)
+    // Network Variables - Server Authoritative
     private readonly NetworkVariable<float> netMoveSpeed = new(5f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private readonly NetworkVariable<float> netGravity = new(-20f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private readonly NetworkVariable<float> netGroundedGravity = new(-2f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private readonly NetworkVariable<float> netJumpHeight = new(2f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     private CharacterController characterController;
     private float verticalVelocity;
 
-    // Respawn Control
-    private bool isRespawning = false;
-
-    // Debug
+    // Debug Tracking
     private Vector3 lastPosition;
+    private float sessionDistance = 0f;
     private bool wasMovingLastFrame = false;
 
     private void Awake()
@@ -39,37 +40,47 @@ public class NetworkPlayerController : NetworkBehaviour
         base.OnNetworkSpawn();
         lastPosition = transform.position;
 
+        // Server initializes stats
         if (IsServer)
         {
             netMoveSpeed.Value = defaultMoveSpeed;
+            netGravity.Value = defaultGravity;
+            netGroundedGravity.Value = defaultGroundedGravity;
+            netJumpHeight.Value = defaultJumpHeight;
         }
 
-        // Only local player controls movement
-        enabled = IsLocalPlayer;
+        // Fix for NetworkTransform conflict (prevents client slowdown)
+        if (TryGetComponent<NetworkTransform>(out var networkTransform))
+        {
+            if (IsServer)
+            {
+                networkTransform.Interpolate = false; // Server doesn't need interpolation
+            }
+        }
 
-        Debug.Log($"[{gameObject.name}] Spawned → LocalPlayer: {IsLocalPlayer} | Server: {IsServer} | Owner: {IsOwner}");
+        Debug.Log($"[{gameObject.name}] Spawned | Speed: {netMoveSpeed.Value:F2} | IsServer: {IsServer} | IsOwner: {IsOwner}");
     }
 
     private void Update()
     {
-        if (!IsLocalPlayer || isRespawning) return;
+        if (!IsOwner) return;
 
-        // Input
+        // Read Input
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         Vector2 input = new Vector2(h, v).normalized;
         bool jump = Input.GetKeyDown(jumpKey);
 
-        // Local Movement (Client Prediction)
+        // Local Movement (Prediction on Client, Direct on Host)
         MovePlayer(input, jump);
 
-        // Send input to server (only remote clients)
-        if (IsClient && !IsServer)
+        // Clients send input to Server
+        if (!IsServer)
         {
             SendInputToServerRpc(input, jump);
         }
 
-        // Debug
+        // Debug Logging
         if (enableMovementDebug)
         {
             TrackMovementDebug(input);
@@ -84,10 +95,11 @@ public class NetworkPlayerController : NetworkBehaviour
 
     private void MovePlayer(Vector2 input, bool jump)
     {
+        // Always use synced NetworkVariable values
         float moveSpeed = netMoveSpeed.Value;
-        float gravity = defaultGravity;
-        float groundedGravity = defaultGroundedGravity;
-        float jumpHeight = defaultJumpHeight;
+        float gravity = netGravity.Value;
+        float groundedGravity = netGroundedGravity.Value;
+        float jumpHeight = netJumpHeight.Value;
 
         // Gravity & Jump Logic
         if (characterController.isGrounded)
@@ -117,47 +129,45 @@ public class NetworkPlayerController : NetworkBehaviour
     private void TrackMovementDebug(Vector2 input)
     {
         bool isMoving = input.sqrMagnitude > 0.01f;
+        float distThisFrame = Vector3.Distance(transform.position, lastPosition);
+        sessionDistance += distThisFrame;
 
-        if (isMoving && !wasMovingLastFrame)
+        if (isMoving)
         {
-            Debug.Log($"[{gameObject.name}] START MOVING | Speed: {netMoveSpeed.Value:F2} | Local: {IsLocalPlayer}");
+            if (!wasMovingLastFrame)
+            {
+                sessionDistance = 0f;
+                Debug.Log($"[{gameObject.name}] STARTED MOVING | Speed: {netMoveSpeed.Value:F2} | IsServer: {IsServer}");
+            }
+
+            if (Time.frameCount % 30 == 0) // Log every ~0.5 seconds
+            {
+                Debug.Log($"[{gameObject.name}] MOVING | Speed: {netMoveSpeed.Value:F2} | " +
+                          $"Vel: {characterController.velocity.magnitude:F2} | Dist: {sessionDistance:F2}m");
+            }
         }
-
-        if (Time.frameCount % 60 == 0 && isMoving)
+        else if (wasMovingLastFrame)
         {
-            Debug.Log($"[{gameObject.name}] Speed: {netMoveSpeed.Value:F2} | Vel: {characterController.velocity.magnitude:F2} | Local: {IsLocalPlayer}");
+            Debug.Log($"[{gameObject.name}] STOPPED | Total Distance: {sessionDistance:F2}m | " +
+                      $"Speed: {netMoveSpeed.Value:F2} | IsServer: {IsServer}");
         }
 
         lastPosition = transform.position;
         wasMovingLastFrame = isMoving;
     }
 
-    // ====================== RESPAWN CONTROL ======================
-    public void SetRespawning(bool respawning)
-    {
-        isRespawning = respawning;
-
-        if (respawning && characterController != null)
-        {
-            characterController.enabled = false;
-        }
-        else if (characterController != null)
-        {
-            characterController.enabled = true;
-        }
-    }
-
     // ====================== SERVER SETTERS ======================
-    public void SetMoveSpeed(float value)
-    {
-        if (IsServer) netMoveSpeed.Value = value;
-    }
+    public void SetMoveSpeed(float value) { if (IsServer) netMoveSpeed.Value = value; }
+    public void SetGravity(float value) { if (IsServer) netGravity.Value = value; }
+    public void SetGroundedGravity(float value) { if (IsServer) netGroundedGravity.Value = value; }
+    public void SetJumpHeight(float value) { if (IsServer) netJumpHeight.Value = value; }
 
     public void ResetToDefaults()
     {
-        if (IsServer)
-        {
-            netMoveSpeed.Value = defaultMoveSpeed;
-        }
+        if (!IsServer) return;
+        netMoveSpeed.Value = defaultMoveSpeed;
+        netGravity.Value = defaultGravity;
+        netGroundedGravity.Value = defaultGroundedGravity;
+        netJumpHeight.Value = defaultJumpHeight;
     }
 }
