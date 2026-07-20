@@ -206,12 +206,12 @@ public class CountdownTimer : NetworkBehaviour
             int coins = player.GetCurrentCoins();
             string playerName = $"Player {i + 1}";
 
-            string line = $"{playerName} : <b>{coins}</b> coins";
+            string line = $"{playerName} : <b>{coins}</b> masks";
 
             // Highlight winner
             if (coins == highestCoins && !hasTie)
             {
-                line = $"<color=yellow>🏆 {playerName} : <b>{coins}</b> coins - <size=120%>WINNER!</size></color>";
+                line = $"<color=yellow>🏆 {playerName} : <b>{coins}</b> masks - <size=120%>WINNER!</size></color>";
             }
             else if (coins == highestCoins && hasTie)
             {
@@ -223,7 +223,7 @@ public class CountdownTimer : NetworkBehaviour
 
         if (!hasTie)
         {
-            sb.AppendLine("\n<color=yellow><b>🎉 Player with most coins wins!</b></color>");
+            sb.AppendLine("\n<color=yellow><b>🎉 Player with most masks wins!</b></color>");
         }
         else
         {

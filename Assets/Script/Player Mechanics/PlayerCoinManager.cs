@@ -118,7 +118,7 @@ public class PlayerCoinManager : NetworkBehaviour
     {
         if (coinsText != null)
         {
-            coinsText.text = $"Coins : {amount}";
+            coinsText.text = $"Masks : {amount}";
         }
     }
 
