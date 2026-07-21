@@ -127,6 +127,9 @@ public class PlayerCoinManager : NetworkBehaviour
         if (IsServer)
         {
             coins.Value += amount;
+            CountdownTimer timer = FindFirstObjectByType<CountdownTimer>();
+            if (timer != null && timer.IsTieBreakerActive)
+                timer.CheckTieBreakerWin(this);
         }
     }
 
@@ -134,4 +137,7 @@ public class PlayerCoinManager : NetworkBehaviour
     {
         return coins.Value;
     }
+
+    
+
 }
